@@ -1,4 +1,11 @@
-mpi-sum------------------------------------------------------------
+gcc -fopenmp sum.c -o sum
+./sum
+
+gcc -fopenmp minimum.c -o minimum
+./minimum
+
+gcc -fopenmp matrix.c -o matrix
+./matrixmpi-sum------------------------------------------------------------
 
 #include <stdio.h>
 #include <mpi.h>
