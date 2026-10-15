@@ -168,6 +168,134 @@ int main(int argc, char *argv[]) {
     MPI_Finalize();
     return 0;
 }
+Matrix multiplication using OpenMP==========================================================================
+
+#include <stdio.h>
+#include <omp.h>
+#define N 200
+
+int main() {
+    static int a[N][N], b[N][N], c[N][N], d[N][N];
+    int r1 = N, c1 = N, r2 = N, c2 = N;
+    int threads[] = {2, 4, 8};
+    double t;
+
+    if (c1 != r2) {
+        printf("Matrix dimension mismatch\n");
+        return 1;
+    }
+
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++) {
+            a[i][j] = 1;
+            b[i][j] = 2;
+        }
+
+    t = omp_get_wtime();
+    for (int i = 0; i < r1; i++)
+        for (int j = 0; j < c2; j++)
+            for (int k = 0; k < c1; k++)
+                c[i][j] += a[i][k] * b[k][j];
+
+    printf("Sequential time = %f\n", omp_get_wtime() - t);
+
+    for (int x = 0; x < 3; x++) {
+        int th = threads[x];
+        if (th < 1 || th > omp_get_num_procs()) {
+            printf("Invalid thread count: %d\n", th);
+            continue;
+        }
+
+        t = omp_get_wtime();
+
+        #pragma omp parallel for num_threads(th)
+        for (int i = 0; i < r1; i++)
+            for (int j = 0; j < c2; j++)
+                for (int k = 0; k < c1; k++)
+                    d[i][j] += a[i][k] * b[k][j];
+
+        printf("Threads = %d, Result = %d, Time = %f\n",
+               th, d[0][0], omp_get_wtime() - t);
+    }
+    return 0;
+}
+Minimum element using OpenMP reduction=====================================================================
+
+#include <stdio.h>
+#include <omp.h>
+#define N 1000000
+
+int main() {
+    static int a[N];
+    int mn = 0, pmn;
+    double t;
+    int threads[] = {2, 4, 8};
+
+    for (int i = 0; i < N; i++) a[i] = N - i;
+
+    t = omp_get_wtime();
+    mn = a[0];
+    for (int i = 1; i < N; i++)
+        if (a[i] < mn) mn = a[i];
+
+    printf("Sequential min = %d, Time = %f\n",
+           mn, omp_get_wtime() - t);
+
+    for (int k = 0; k < 3; k++) {
+        int th = threads[k];
+        if (th < 1 || th > omp_get_num_procs()) {
+            printf("Invalid thread count: %d\n", th);
+            continue;
+        }
+
+        pmn = a[0];
+        t = omp_get_wtime();
+
+        #pragma omp parallel for num_threads(th) reduction(min:pmn)
+        for (int i = 0; i < N; i++)
+            if (a[i] < pmn) pmn = a[i];
+
+        printf("Threads = %d, Min = %d, Time = %f\n",
+               th, pmn, omp_get_wtime() - t);
+    }
+    return 0;
+}
+Array sum using parallel for and reduction===================================================================
+#include <stdio.h>
+#include <omp.h>
+#define N 1000000
+
+int main() {
+    static int a[N];
+    long long sum = 0, psum = 0;
+    double t;
+    int threads[] = {2, 4, 8};
+
+    for (int i = 0; i < N; i++) a[i] = 1;
+
+    t = omp_get_wtime();
+    for (int i = 0; i < N; i++) sum += a[i];
+    printf("Sequential sum = %lld, Time = %f\n",
+           sum, omp_get_wtime() - t);
+
+    for (int k = 0; k < 3; k++) {
+        int th = threads[k];
+        if (th < 1 || th > omp_get_num_procs()) {
+            printf("Invalid thread count: %d\n", th);
+            continue;
+        }
+
+        psum = 0;
+        t = omp_get_wtime();
+
+        #pragma omp parallel for num_threads(th) reduction(+:psum)
+        for (int i = 0; i < N; i++) psum += a[i];
+
+        printf("Threads = %d, Sum = %lld, Time = %f\n",
+               th, psum, omp_get_wtime() - t);
+    }
+    return 0;
+}
 
 
 (cl /I"%MSMPI_INC%" product.c /link /LIBPATH:"%MSMPI_LIB64%" msmpi.lib
